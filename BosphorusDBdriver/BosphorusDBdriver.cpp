@@ -1,23 +1,26 @@
 ﻿
 #include "stdafx.h"
-void BosphorusDBdriver::read_bntfile(const char* filepath, double** &data, double* zmin, uint16_t*  nrows, uint16_t* ncols, char *imfile)
+BosphorusDBdriver::BosphorusDBdriver(const char* filepath, int index)
 {
 	long size;
-	ifstream in(filepath, ios::in | ios::binary | ios::ate);
+	std::string filename_data = filepath + to_string(index) + ".bnt";
+	std::string filename_lm2 = filepath + to_string(index) + ".lm2";
+	std::string filename_lm3 = filepath + to_string(index) + ".lm3";
+	ifstream in(filename_data, ios::in | ios::binary | ios::ate);
 	if (!in.is_open())
 	{
-		cout << "Error opening file";
+		cout << "Error opening file";
 		exit(1);
 	}
 	uint16_t len;
-	uint32_t len2;
 	double k;
 	size = in.tellg();
-	in.seekg (0, ios::beg);
-	in.read((char*)nrows, sizeof(uint16_t));
-	in.read((char*)ncols, sizeof(uint16_t));
-	in.read((char*)zmin, sizeof(double));
+	in.seekg(0, ios::beg);
+	in.read((char*)&nrows, sizeof(uint16_t));
+	in.read((char*)&ncols, sizeof(uint16_t));
+	in.read((char*)&zmin, sizeof(double));
 	in.read((char*)&len, sizeof(uint16_t));
+	imfile = new char[len+1];
 	in.read((char*)imfile, sizeof(char)*len);
 	in.read((char*)&len2, sizeof(uint32_t));
 	data = new double*[len2 / 5];
@@ -32,8 +35,77 @@ void BosphorusDBdriver::read_bntfile(const char* filepath, double** &data, doubl
 		}
 	}
 	in.close();
-	cout<< "the complete file is in a buffer"<<endl;
+
+	// read 2d landmark
+	std::string buff;
+	in.open(filename_lm2, ios::in);
+	if (!in.is_open())
+		{
+			cout << "Error opening file";
+			exit(1);
+		}
+	getline(in, buff);
+	cout << buff<<endl;
+	getline(in, buff);
+	in>>landmark2dn;
+	getline(in, buff);
+	getline(in, buff);
+	getline(in, buff);
+	for (int i = 0; i < landmark2dn; i++)
+	{
+		getline(in, buff);
+		labels2d.push_back(buff);
+	}
+	getline(in, buff);
+	getline(in, buff);
+	for (int i = 0; i < landmark2dn; i++)
+	{
+		double a, b;
+		in >> a >> b;
+		Point pt = Point(a, b);
+		pts2d.push_back(pt);
+	}
+	in.close();
+
+	//read landmarks 3d
+	in.open(filename_lm3, ios::in);
+	if (!in.is_open())
+	{
+		cout << "Error opening file";
+		exit(1);
+	}
+	getline(in, buff);
+	getline(in, buff);
+	while (!buff.empty())
+	{
+		getline(in, buff);
+	}
+	in >> landmark3dn;
+	getline(in, buff);
+	for (int i = 0; i < landmark3dn; i++)
+	{
+		getline(in, buff);
+		labels3d.push_back(buff);
+		double a, b,c;
+		in >> a >> b>>c;
+		Point3d pt = Point3d(a, b,c);
+		pts3d.push_back(pt);
+		getline(in, buff);
+	}
+	in.close();
+	
+	
+
+	cout << "the complete file is in a buffer" << endl;
 }
+BosphorusDBdriver::~BosphorusDBdriver()
+{
+	for (int i = 0; i < len2 / 5; i++)
+		delete[] data[i];
+	delete[] data;
+	delete[] imfile;
+}
+
 
 bool BosphorusDBdriver::uperTriangleValid(Mat mask, const uint16_t row, const uint16_t col)
 {
@@ -58,14 +130,9 @@ bool BosphorusDBdriver::lowerTriangleValid(Mat mask, const uint16_t row, const u
 			return true;
 }
 
-MyTriMesh BosphorusDBdriver::getMesh(const char* filepath)
+MyTriMesh BosphorusDBdriver::getMesh()
 {
 	MyTriMesh mesh;
-	double **data;
-	double zmin;
-	uint16_t ncols, nrows;
-	char imfile[50];
-	BosphorusDBdriver::read_bntfile("1.bnt", data, &zmin, &nrows, &ncols, imfile);
 	int vertexCount = nrows * ncols;
 	MyTriMesh::VertexHandle* vhandle = new MyTriMesh::VertexHandle[vertexCount];
 	cv::Mat mask = cv::Mat::zeros(nrows, ncols, CV_64FC3);
@@ -164,6 +231,8 @@ MyTriMesh BosphorusDBdriver::getMesh(const char* filepath)
 	//update face normal
 	mesh.request_face_normals();
 	mesh.update_face_normals();
+
+
 
 	//update vertex normal
 	mesh.request_vertex_normals();

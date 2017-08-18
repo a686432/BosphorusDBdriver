@@ -13,21 +13,14 @@ string kinect_mesh_file = output_fold + kinect_mesh_name;
 
 void main_read()
 {
-	char* filepath= "1.but";
-	double **data=nullptr;
-	double zmin;
-	uint16_t ncols, nrows;  
-	char imfile[50];
-	BosphorusDBdriver::read_bntfile("1.bnt", data, &zmin, &nrows, &ncols, imfile);
-	//int vertexCount = nrows * ncols;
-	//int idx = 300;
-	//cout << data[idx][3] << " " << idx / ncols << " " << idx%ncols << endl;
-	//for (int idx = 0; idx < vertexCount; idx++)
-	//	cout << data[idx] << " " << idx / ncols << " " << idx%ncols << endl;
+	BosphorusDBdriver bp{ "",1 };
+	auto data = bp.getdata();
+	cout << data[300][3]<< endl;
 }
 void main_save_mash()
 {
-	MyTriMesh depthRecMesh = BosphorusDBdriver::getMesh("1.bnt");
+	BosphorusDBdriver bp{ "",1 };
+	MyTriMesh depthRecMesh = bp.getMesh();
 	if (!OpenMesh::IO::write_mesh(depthRecMesh, kinect_mesh_file.c_str()))
 	{
 		std::cerr << "Cannot write mesh to file: " << kinect_mesh_file << std::endl;
